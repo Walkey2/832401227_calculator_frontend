@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Separate Front Back Calculator</title>
+<style>
+*{box-sizing:border-box;font-size:18px;}
+.container{max-width:600px;margin:20px auto;padding:10px;}
+.calc{border:1px solid #999;padding:15px;}
+#inputArea{width:100%;padding:8px;margin-bottom:8px;font-size:24px;}
+#result{font-size:24px;color:#222;margin:10px 0;height:32px;}
+.btns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+button{padding:12px;cursor:pointer;}
+#history{margin-top:20px;border-top:1px solid #aaa;padding-top:10px;}
+.history-item{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee;}
+.del-btn{color:red;border:none;background:none;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="calc">
+        <input id="inputArea" readonly placeholder="expression">
+        <div id="result"></div>
+        <div class="btns">
+            <button onclick="appendChar('7')">7</button>
+            <button onclick="appendChar('8')">8</button>
+            <button onclick="appendChar('9')">9</button>
+            <button onclick="appendChar('/')">÷</button>
+            <button onclick="appendChar('4')">4</button>
+            <button onclick="appendChar('5')">5</button>
+            <button onclick="appendChar('6')">6</button>
+            <button onclick="appendChar('*')">×</button>
+            <button onclick="appendChar('1')">1</button>
+            <button onclick="appendChar('2')">2</button>
+            <button onclick="appendChar('3')">3</button>
+            <button onclick="appendChar('-')">-</button>
+            <button onclick="appendChar('0')">0</button>
+            <button onclick="appendChar('.')">.</button>
+            <button onclick="appendChar('+')">+</button>
+            <button onclick="appendChar('(')"> ( </button>
+            <button onclick="appendChar(')')">)</button>
+            <button onclick="clearInput()">C</button>
+            <button onclick="submitCalc()" style="background:#4488ff;color:white;">=</button>
+        </div>
+    </div>
+    <div id="history">
+        <h3>Calculation History</h3>
+        <button onclick="clearAllHistory()">Clear All History</button>
+        <div id="historyList"></div>
+    </div>
+</div>
+
+<script>
+// 替换为你的后端API地址
+const API_BASE = "https://xxx.onrender.com/api";
+const inputDom = document.getElementById("inputArea");
+const resultDom = document.getElementById("result");
+const historyListDom = document.getElementById("historyList");
+
+function appendChar(c){
+    let realChar = c;
+    if(c === "×") realChar = "*";
+    if(c === "÷") realChar = "/";
+    inputDom.value += realChar;
+}
+function clearInput(){
+    inputDom.value = "";
+    resultDom.innerText = "";
+}
+
+async function submitCalc(){
+    const expr = inputDom.value.trim();
+    if(!expr) return;
+    try{
+        const resp = await fetch(`${API_BASE}/calculate`,{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({expression:expr})
+        })
+        const data = await resp.json();
+        if(data.success){
+            resultDom.innerText = `Result: ${data.result}`;
+        }else{
+            resultDom.innerText = `Error: ${data.message}`;
+        }
+        loadHistory();
+    }catch(e){
+        resultDom.innerText = "Backend service unavailable!";
+    }
+}
+
+async function loadHistory(){
+    const resp = await fetch(`${API_BASE}/history`);
+    const json = await resp.json();
+    historyListDom.innerHTML = "";
+    json.data.forEach(item=>{
+        const div = document.createElement("div");
+        div.className = "history-item";
+        div.innerHTML = `<span>${item.expression} = ${item.result} | ${item.created_at}</span>
+        <button class="del-btn" onclick="deleteRecord(${item.id})">Delete</button>`;
+        historyListDom.appendChild(div);
+    })
+}
+
+async function deleteRecord(id){
+    await fetch(`${API_BASE}/history/${id}`,{method:"DELETE"});
+    loadHistory();
+}
+
+async function clearAllHistory(){
+    await fetch(`${API_BASE}/history`,{method:"DELETE"});
+    loadHistory();
+}
+
+window.onload = loadHistory;
+</script>
+</body>
+</html>
